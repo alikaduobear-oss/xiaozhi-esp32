@@ -1,4 +1,4 @@
-name: Build Boards
+name: Build bread-compact-wifi-lcd
 
 on:
   push:
@@ -7,23 +7,32 @@ on:
 
 jobs:
   build:
-    name: Build bread-compact-wifi-lcd
+    name: Build firmware
     runs-on: ubuntu-latest
     container:
       image: espressif/idf:v5.5.2
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build firmware
         shell: bash
         run: |
           source $IDF_PATH/export.sh
-          python scripts/release.py bread-compact-wifi-lcd
+          # 设置目标芯片
+          idf.py set-target esp32s3
+          # 选择板型（通过 menuconfig 或环境变量）
+          # 方法1：通过环境变量选择板型（如果项目支持）
+          export BOARD_TYPE=bread-compact-wifi-lcd
+          # 方法2：或者直接复制配置文件（更可靠）
+          # cp main/boards/bread-compact-wifi-lcd/config.h main/boards/config.h
+          idf.py build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: xiaozhi_bread-compact-wifi-lcd_${{ github.sha }}
-          path: build/merged-binary.bin
+          path: build/xiaozhi.bin   # 注意：固件路径可能是 build/xiaozhi.bin
           if-no-files-found: error
