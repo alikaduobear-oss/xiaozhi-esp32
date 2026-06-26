@@ -9,7 +9,7 @@ jobs:
   build_firmware:
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v5.3.2   # 使用官方 ESP-IDF 容器，省去安装步骤
+      image: espressif/idf:v5.3.2
     steps:
       - name: 拉取源码
         uses: actions/checkout@v4
@@ -20,15 +20,12 @@ jobs:
         shell: bash
         run: |
           source $IDF_PATH/export.sh
-          # 使用 release.py 编译指定板型，它会自动处理所有配置
-          python scripts/release.py bread-compact-wifi-lcd
+          python scripts/release.py bread-compact-wifi-lcd --name bread-compact-wifi-lcd
 
       - name: 收集固件
         run: |
           mkdir -p output_bin
           cp build/merged-binary.bin output_bin/firmware.bin
-          cp build/bootloader/bootloader.bin output_bin/
-          cp build/partition-table.bin output_bin/
           ls -lh output_bin
 
       - name: 上传固件包
