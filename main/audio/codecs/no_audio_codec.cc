@@ -11,7 +11,6 @@
 
 #define TAG "NoAudioCodec"
 
-// 放大DMA缓冲区，消除断音/卡顿杂音
 #undef AUDIO_CODEC_DMA_DESC_NUM
 #undef AUDIO_CODEC_DMA_FRAME_NUM
 #define AUDIO_CODEC_DMA_DESC_NUM 8
@@ -139,7 +138,6 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     };
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle_, &tx_std_cfg));
 
-    // INMP441 标准时序修复，消除随机噪声
     chan_cfg.id = (i2s_port_t)1;
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, nullptr, &rx_handle_));
 
@@ -249,10 +247,8 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     ESP_LOGI(TAG, "Simplex channels created");
 }
 
-// 输出：软限幅防破音
 int NoAudioCodec::Write(const int16_t* data, int samples) {
     std::lock_guard<std::mutex> lock(data_if_mutex_);
-
     int32_t volume_factor = (int32_t)(pow(double(output_volume_) / 100.0, 2) * 65536);
     std::vector<int16_t> stereo_buffer(samples * 2);
     const int32_t SOFT_LIMIT = 28000;
@@ -273,7 +269,6 @@ int NoAudioCodec::Write(const int16_t* data, int samples) {
     return bytes_written / sizeof(int16_t) / 2;
 }
 
-// 输入：噪声门限，低于阈值清零消除底噪
 int NoAudioCodec::Read(int16_t* dest, int samples) {
     size_t bytes_read;
     constexpr uint32_t kReadTimeoutMs = 200;
@@ -282,18 +277,12 @@ int NoAudioCodec::Read(int16_t* dest, int samples) {
     std::vector<int16_t> buffer(samples);
     esp_err_t ret = i2s_channel_read(rx_handle_, buffer.data(), samples * sizeof(int16_t),
                                     &bytes_read, kReadTimeoutMs);
-    if (ret != ESP_OK) {
-        return 0;
-    }
+    if (ret != ESP_OK) return 0;
 
     samples = bytes_read / sizeof(int16_t);
     for (int i = 0; i < samples; i++) {
         int16_t val = buffer[i];
-        if (std::abs(val) < NOISE_THRESHOLD) {
-            dest[i] = 0;
-        } else {
-            dest[i] = val;
-        }
+        dest[i] = (std::abs(val) < NOISE_THRESHOLD) ? 0 : val;
     }
     return samples;
 }
@@ -301,28 +290,21 @@ int NoAudioCodec::Read(int16_t* dest, int samples) {
 void NoAudioCodec::EnableInput(bool enable) {
     std::lock_guard<std::mutex> lock(data_if_mutex_);
     if (enable == input_enabled_) return;
-    if (enable) {
-        ESP_ERROR_CHECK(i2s_channel_enable(rx_handle_));
-    } else {
-        ESP_ERROR_CHECK(i2s_channel_disable(rx_handle_));
-    }
+    if (enable) ESP_ERROR_CHECK(i2s_channel_enable(rx_handle_));
+    else ESP_ERROR_CHECK(i2s_channel_disable(rx_handle_));
     AudioCodec::EnableInput(enable);
 }
 
 void NoAudioCodec::EnableOutput(bool enable) {
     std::lock_guard<std::mutex> lock(data_if_mutex_);
     if (enable == output_enabled_) return;
-    if (enable) {
-        ESP_ERROR_CHECK(i2s_channel_enable(tx_handle_));
-    } else {
-        ESP_ERROR_CHECK(i2s_channel_disable(tx_handle_));
-    }
+    if (enable) ESP_ERROR_CHECK(i2s_channel_enable(tx_handle_));
+    else ESP_ERROR_CHECK(i2s_channel_disable(tx_handle_));
     AudioCodec::EnableOutput(enable);
 }
 
 NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output_sample_rate, gpio_num_t spk_bclk, gpio_num_t spk_ws, gpio_num_t spk_dout, gpio_num_t mic_sck, gpio_num_t mic_din)
-    : NoAudioCodecSimplexPdm(input_sample_rate, output_sample_rate, spk_bclk, spk_ws, spk_dout, I2S_STD_SLOT_LEFT, mic_sck, mic_din) {
-}
+    : NoAudioCodecSimplexPdm(input_sample_rate, output_sample_rate, spk_bclk, spk_ws, spk_dout, I2S_STD_SLOT_LEFT, mic_sck, mic_din) {}
 
 NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output_sample_rate, gpio_num_t spk_bclk, gpio_num_t spk_ws, gpio_num_t spk_dout, i2s_std_slot_mask_t spk_slot_mask, gpio_num_t mic_sck, gpio_num_t mic_din) {
     duplex_ = false;
@@ -366,11 +348,7 @@ NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output
             .ws = spk_ws,
             .dout = spk_dout,
             .din = I2S_GPIO_UNUSED,
-            .invert_flags = {
-                .mclk_inv = false,
-                .bclk_inv = false,
-                .ws_inv = false,
-            },
+            .invert_flags = {false,false,false},
         },
     };
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle_, &tx_std_cfg));
@@ -378,8 +356,6 @@ NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output
 #if SOC_I2S_SUPPORTS_PDM_RX
     i2s_chan_config_t rx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG((i2s_port_t)0, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&rx_chan_cfg, NULL, &rx_handle_));
-
-    // PDM开启硬件高低通滤波，压制高频沙沙噪声
     i2s_pdm_rx_config_t pdm_rx_cfg = {
         .clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG((uint32_t)input_sample_rate_),
         .slot_cfg = I2S_PDM_RX_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
@@ -389,13 +365,7 @@ NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output
             .lpf_en = true,
             .lpf_cutoff_hz = 3800
         },
-        .gpio_cfg = {
-            .clk = mic_sck,
-            .din = mic_din,
-            .invert_flags = {
-                .clk_inv = false,
-            },
-        },
+        .gpio_cfg = {.clk = mic_sck,.din = mic_din,.invert_flags = {false}},
     };
     ESP_ERROR_CHECK(i2s_channel_init_pdm_rx_mode(rx_handle_, &pdm_rx_cfg));
 #else
@@ -404,28 +374,20 @@ NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output
     ESP_LOGI(TAG, "Simplex PDM channels created");
 }
 
-// PDM麦克风读取：限制增益+噪声门限
 int NoAudioCodecSimplexPdm::Read(int16_t* dest, int samples) {
     size_t bytes_read;
     constexpr int16_t NOISE_THRESHOLD = 100;
-
     esp_err_t ret = i2s_channel_read(rx_handle_, dest, samples * sizeof(int16_t), &bytes_read, portMAX_DELAY);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "PDM Read Failed!");
         return 0;
     }
-
     samples = bytes_read / sizeof(int16_t);
-    int gain_factor = static_cast<int>(input_gain_);
-    if (gain_factor > 4) gain_factor = 4; // 限制最大增益，防止放大噪声
-
+    int gain_factor = std::min((int)input_gain_, 4);
     for (int i = 0; i < samples; i++) {
         int32_t amplified = dest[i] * gain_factor;
-        if (std::abs(amplified) < NOISE_THRESHOLD) {
-            dest[i] = 0;
-        } else {
-            dest[i] = static_cast<int16_t>(std::clamp(amplified, (int32_t)-INT16_MAX, (int32_t)INT16_MAX));
-        }
+        if (std::abs(amplified) < NOISE_THRESHOLD) dest[i] = 0;
+        else dest[i] = static_cast<int16_t>(std::clamp(amplified, (int32_t)-INT16_MAX, (int32_t)INT16_MAX));
     }
     return samples;
 }
