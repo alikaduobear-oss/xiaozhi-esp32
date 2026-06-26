@@ -16,34 +16,33 @@ jobs:
         with:
           submodules: recursive
 
-      - name: 设置目标芯片并复制配置
+      - name: 检查板型配置
+        run: |
+          if [ ! -f "main/boards/bread-compact-wifi-lcd/config.h" ]; then
+            echo "错误：缺少 bread-compact-wifi-lcd 板型，请先创建"
+            exit 1
+          fi
+
+      - name: 配置并编译
         shell: bash
         run: |
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
-          # 确保 board 配置存在
-          if [ ! -f "main/boards/bread-compact-wifi-lcd/config.h" ]; then
-            echo "错误：缺少 bread-compact-wifi-lcd 板型配置"
-            exit 1
-          fi
-          # 复制 board 配置到主配置（如果项目需要）
-          # 某些项目通过环境变量 BOARD_TYPE 选择板型
+          
+          # 生成 sdkconfig（启用 ST7735 和板型）
+          echo "CONFIG_LCD_ST7735_128X160=y" >> sdkconfig.defaults
+          echo "CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD=y" >> sdkconfig.defaults
+          idf.py defconfig
+          
           export BOARD_TYPE=bread-compact-wifi-lcd
-          # 或者直接复制 config.h（如果项目是这种方式）
-          # cp main/boards/bread-compact-wifi-lcd/config.h main/config.h
-
-      - name: 编译固件
-        shell: bash
-        run: |
-          source $IDF_PATH/export.sh
-          export BOARD_TYPE=bread-compact-wifi-lcd
-          idf.py build
+          idf.py build -j2
 
       - name: 收集固件
         run: |
           mkdir -p output_bin
-          # 查找生成的 bin 文件
-          find build -name "*.bin" -exec cp {} output_bin/ \;
+          cp build/bootloader/bootloader.bin output_bin/ 2>/dev/null || true
+          cp build/partition-table.bin output_bin/ 2>/dev/null || true
+          find build -maxdepth 1 -name "*.bin" ! -name "bootloader.bin" ! -name "partition-table.bin" -exec cp {} output_bin/firmware.bin \;
           ls -lh output_bin
 
       - name: 上传固件包
