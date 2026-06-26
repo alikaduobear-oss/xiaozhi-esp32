@@ -9,7 +9,7 @@ jobs:
   build_firmware:
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v5.3.2
+      image: espressif/idf:v5.5.2  # 升级到与原始仓库一致的版本
     steps:
       - name: 拉取源码 + 完整更新子模块
         uses: actions/checkout@v4
@@ -17,49 +17,33 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: 校验关键文件存在
+      - name: 校验板型配置文件存在
         run: |
-          for f in "main/boards/bread-compact-wifi-lcd/config.h" "CMakeLists.txt" "sdkconfig.defaults"; do
-            if [ ! -f "$f" ]; then
-              echo "::error::缺少关键文件: $f"
-              exit 1
-            fi
-          done
+          if [ ! -f "main/boards/bread-compact-wifi-lcd/config.json" ]; then
+            echo "::error::缺少 config.json，请确认板型目录完整"
+            exit 1
+          fi
+          if [ ! -f "main/boards/bread-compact-wifi-lcd/config.h" ]; then
+            echo "::error::缺少板型文件 main/boards/bread-compact-wifi-lcd/config.h"
+            exit 1
+          fi
 
-      - name: 配置并编译
+      - name: 使用 release.py 构建固件
         shell: bash
         run: |
           source $IDF_PATH/export.sh
-          
-          # 1. 清理旧构建
-          rm -f sdkconfig
-          idf.py fullclean 2>/dev/null || true
-          
-          # 2. 复制基础配置并追加板型设置
-          cp sdkconfig.defaults sdkconfig
-          {
-            echo "CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y"
-            echo "CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD=y"
-          } >> sdkconfig
-          
-          # 3. 设置目标芯片（会基于 sdkconfig 生成完整配置）
-          idf.py set-target esp32s3
-          
-          # 4. 验证关键配置是否生效
-          grep "CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD" sdkconfig || {
-            echo "::error::板型配置未生效"
-            exit 1
-          }
-          
-          # 5. 编译（单线程防内存溢出）
-          idf.py build -j1
+          # release.py 会自动处理 set-target、sdkconfig_append、build
+          python scripts/release.py bread-compact-wifi-lcd
 
       - name: 收集并上传固件
         run: |
           mkdir -p output_bin
-          cp build/bootloader/bootloader.bin output_bin/
-          cp build/partition-table.bin output_bin/
-          cp build/xiaozhi-esp32.bin output_bin/
+          # release.py 会生成 merged-binary.bin
+          cp build/merged-binary.bin output_bin/ 2>/dev/null || true
+          # 同时收集标准烧录文件
+          cp build/bootloader/bootloader.bin output_bin/ 2>/dev/null || true
+          cp build/partition-table.bin output_bin/ 2>/dev/null || true
+          cp build/xiaozhi-esp32.bin output_bin/ 2>/dev/null || true
           ls -lh output_bin
 
       - name: 上传固件包
