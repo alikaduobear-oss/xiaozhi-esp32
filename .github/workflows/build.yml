@@ -2,36 +2,35 @@ name: Build ESP32-S3 Xiaozhi Firmware
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: # 支持手动触发编译
+  workflow_dispatch: # 手动触发按钮
 
 jobs:
   build_firmware:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout source code
+      - name: 拉取源码
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: 安装系统依赖
         run: |
           sudo apt update
-          sudo apt install git wget flex bison gperf python3 python3-pip python3-venv cmake ninja-build ccache libncurses-dev libssl-dev
+          sudo apt install -y git wget flex bison gperf python3 python3-pip python3-venv cmake ninja-build ccache libncurses-dev libssl-dev
 
-      - name: Download & Setup ESP-IDF v5.3
+      - name: 下载并初始化 ESP-IDF v5.3
         run: |
           export IDF_VERSION=v5.3
           git clone --depth 1 --branch $IDF_VERSION https://github.com/espressif/esp-idf.git ~/esp-idf
           cd ~/esp-idf
           ./install.sh esp32s3
-          echo "source ~/esp-idf/export.sh" >> $GITHUB_ENV
 
-      - name: Build firmware
+      - name: 编译固件
         run: |
           source ~/esp-idf/export.sh
           idf.py set-target esp32s3
           idf.py fullclean
           idf.py build
 
-      - name: Collect bin files
+      - name: 收集三个bin文件
         run: |
           mkdir -p output_bin
           cp build/bootloader/bootloader.bin output_bin/
@@ -39,7 +38,7 @@ jobs:
           cp build/xiaozhi-esp32.bin output_bin/
           ls -lh output_bin
 
-      - name: Upload bin artifacts
+      - name: 上传固件包（可网页下载）
         uses: actions/upload-artifact@v4
         with:
           name: esp32s3-firmware-bins
