@@ -24,10 +24,10 @@
 #else
 
 // 双工模式（未使用）
-#define AUDIO_I2S_GPIO_WS   GPIO_NUM_8
-#define AUDIO_I2S_GPIO_BCLK GPIO_NUM_9
-#define AUDIO_I2S_GPIO_DIN  GPIO_NUM_10
-#define AUDIO_I2S_GPIO_DOUT GPIO_NUM_15
+#define AUDIO_I2S_GPIO_WS       GPIO_NUM_8
+#define AUDIO_I2S_GPIO_BCLK     GPIO_NUM_9
+#define AUDIO_I2S_GPIO_DIN      GPIO_NUM_10
+#define AUDIO_I2S_GPIO_DOUT     GPIO_NUM_15
 
 #endif
 
@@ -39,33 +39,30 @@
 #define VOLUME_DOWN_BUTTON_GPIO GPIO_NUM_NC
 
 // 屏幕 (ST7735, 1.8"inch)
-#define DISPLAY_BACKLIGHT_PIN GPIO_NUM_7
-#define DISPLAY_MOSI_PIN      GPIO_NUM_11
-#define DISPLAY_CLK_PIN       GPIO_NUM_12
-#define DISPLAY_DC_PIN        GPIO_NUM_4
-#define DISPLAY_RST_PIN       GPIO_NUM_5
-#define DISPLAY_CS_PIN        GPIO_NUM_6
+#define DISPLAY_BACKLIGHT_PIN   GPIO_NUM_7
+#define DISPLAY_MOSI_PIN        GPIO_NUM_11
+#define DISPLAY_CLK_PIN         GPIO_NUM_12
+#define DISPLAY_DC_PIN          GPIO_NUM_4
+#define DISPLAY_RST_PIN         GPIO_NUM_5
+#define DISPLAY_CS_PIN          GPIO_NUM_6
 
 // 屏幕参数 (ST7735 128x160)
 #ifdef CONFIG_LCD_ST7735_128X160
 #define LCD_TYPE_ST7789_SERIAL
-#define DISPLAY_WIDTH   128
-#define DISPLAY_HEIGHT  160
-#define DISPLAY_MIRROR_X true
-#define DISPLAY_MIRROR_Y true
-#define DISPLAY_SWAP_XY false
+#define DISPLAY_WIDTH           128
+#define DISPLAY_HEIGHT          160
+#define DISPLAY_MIRROR_X        true
+#define DISPLAY_MIRROR_Y        true
+#define DISPLAY_SWAP_XY         false
 #define DISPLAY_INVERT_COLOR    false
-#define DISPLAY_RGB_ORDER  LCD_RGB_ELEMENT_ORDER_RGB
-#define DISPLAY_OFFSET_X  0
-#define DISPLAY_OFFSET_Y  0
+#define DISPLAY_RGB_ORDER       LCD_RGB_ELEMENT_ORDER_RGB
+#define DISPLAY_OFFSET_X        0
+#define DISPLAY_OFFSET_Y        0
 #define DISPLAY_BACKLIGHT_OUTPUT_INVERT false
-#define DISPLAY_SPI_MODE 0
+#define DISPLAY_SPI_MODE        0
 #endif
 
-// （以下保持其他屏幕类型定义不变，但已无需修改）
-// ... 省略其他 LCD 类型，保留即可 ...
-
 // 测试用灯
-#define LAMP_GPIO GPIO_NUM_18
+#define LAMP_GPIO               GPIO_NUM_18
 
-#endif // _BOARD_CONFI
+#endif // _BOARD_CONFIG_H_
