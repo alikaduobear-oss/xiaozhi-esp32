@@ -12,12 +12,6 @@ public:
     virtual int Read(int16_t* dest, int samples) override;
     virtual void EnableInput(bool enable) override;
     virtual void EnableOutput(bool enable) override;
-    
-    // 必须实现这些虚函数，否则基类返回 0
-    virtual int input_sample_rate() const override { return input_sample_rate_; }
-    virtual int output_sample_rate() const override { return output_sample_rate_; }
-    virtual int input_channels() const override { return duplex_ ? 2 : 1; }
-    virtual int output_channels() const override { return 2; }
 
 protected:
     std::mutex data_if_mutex_;
