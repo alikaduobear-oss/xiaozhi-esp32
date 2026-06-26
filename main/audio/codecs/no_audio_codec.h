@@ -20,11 +20,6 @@ public:
     virtual int output_channels() const override { return 2; }
 
 protected:
-    bool duplex_ = false;
-    int input_sample_rate_ = 16000;
-    int output_sample_rate_ = 24000;
-    i2s_chan_handle_t tx_handle_ = nullptr;
-    i2s_chan_handle_t rx_handle_ = nullptr;
     std::mutex data_if_mutex_;
 };
 

@@ -20,6 +20,8 @@ NoAudioCodecDuplex::NoAudioCodecDuplex(int input_sample_rate, int output_sample_
     duplex_ = true;
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
+    input_channels_ = 2;
+    output_channels_ = 2;
 
     i2s_chan_config_t chan_cfg = {
         .id = I2S_NUM_0,
@@ -77,6 +79,8 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     duplex_ = false;
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
+    input_channels_ = 1;
+    output_channels_ = 2;
 
     // Create TX channel for speaker (MAX98357) - 16-bit stereo
     i2s_chan_config_t chan_cfg = {
@@ -176,6 +180,8 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     duplex_ = false;
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
+    input_channels_ = 1;
+    output_channels_ = 2;
 
     // Create TX channel for speaker
     i2s_chan_config_t chan_cfg = {
@@ -317,6 +323,8 @@ NoAudioCodecSimplexPdm::NoAudioCodecSimplexPdm(int input_sample_rate, int output
     duplex_ = false;
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
+    input_channels_ = 1;
+    output_channels_ = 2;
 
     // Create TX channel for speaker
     i2s_chan_config_t tx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG((i2s_port_t)1, I2S_ROLE_MASTER);
