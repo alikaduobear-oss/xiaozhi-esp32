@@ -11,38 +11,52 @@ jobs:
     container:
       image: espressif/idf:v5.3.2
     steps:
-      - name: 拉取源码
+      - name: 拉取源码 + 完整更新子模块
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
-      - name: 检查板型配置
+      - name: 校验目标板文件存在
         run: |
           if [ ! -f "main/boards/bread-compact-wifi-lcd/config.h" ]; then
-            echo "错误：缺少 bread-compact-wifi-lcd 板型，请先创建"
+            echo "::error::缺少板型文件 main/boards/bread-compact-wifi-lcd/config.h"
             exit 1
           fi
 
-      - name: 配置并编译
+      - name: 加载ESP-IDF环境、清理旧构建缓存
         shell: bash
         run: |
           source $IDF_PATH/export.sh
           idf.py set-target esp32s3
-          
-          # 生成 sdkconfig（启用 ST7735 和板型）
-          echo "CONFIG_LCD_ST7735_128X160=y" >> sdkconfig.defaults
-          echo "CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD=y" >> sdkconfig.defaults
+          # 清空旧配置与编译缓存
+          idf.py fullclean
+
+      - name: 生成正确sdkconfig（16MB DIO + ST7735 + 指定板型）
+        shell: bash
+        run: |
+          source $IDF_PATH/export.sh
+          # 优先使用项目自带S3默认配置文件
+          cp -f sdkconfig.defaults/sdkconfig.defaults.esp32s3 sdkconfig
+          # 追加屏幕与主板宏
+          echo "CONFIG_LCD_ST7735_128X160=y" >> sdkconfig
+          echo "CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD=y" >> sdkconfig
           idf.py defconfig
-          
+
+      - name: 编译固件（限制线程防内存溢出）
+        shell: bash
+        run: |
+          source $IDF_PATH/export.sh
           export BOARD_TYPE=bread-compact-wifi-lcd
           idf.py build -j2
 
-      - name: 收集固件
+      - name: 收集标准3个烧录bin文件
         run: |
           mkdir -p output_bin
-          cp build/bootloader/bootloader.bin output_bin/ 2>/dev/null || true
-          cp build/partition-table.bin output_bin/ 2>/dev/null || true
-          find build -maxdepth 1 -name "*.bin" ! -name "bootloader.bin" ! -name "partition-table.bin" -exec cp {} output_bin/firmware.bin \;
+          # 强制复制，缺失直接报错方便定位
+          cp build/bootloader/bootloader.bin output_bin/
+          cp build/partition-table.bin output_bin/
+          cp build/xiaozhi-esp32.bin output_bin/
           ls -lh output_bin
 
       - name: 上传固件包
