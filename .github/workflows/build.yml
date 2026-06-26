@@ -9,7 +9,7 @@ jobs:
   build_firmware:
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v5.3.2
+      image: espressif/idf:v5.5.2  # 升级到与原始仓库一致的版本
     steps:
       - name: 拉取源码 + 完整更新子模块
         uses: actions/checkout@v4
@@ -22,6 +22,7 @@ jobs:
           for f in "main/boards/bread-compact-wifi-lcd/config.json" \
                    "main/boards/bread-compact-wifi-lcd/config.h" \
                    "main/boards/bread-compact-wifi-lcd/bread-compact-wifi-lcd.cc" \
+                   "main/boards/bread-compact-wifi-lcd/CMakeLists.txt" \
                    "CMakeLists.txt" \
                    "sdkconfig.defaults" \
                    "scripts/release.py"; do
@@ -31,23 +32,35 @@ jobs:
             fi
           done
 
+      - name: 验证 JSON 格式
+        run: |
+          python -c "import json; json.load(open('main/boards/bread-compact-wifi-lcd/config.json'))"
+          echo "config.json 格式正确"
+
       - name: 使用 release.py 构建固件
         shell: bash
         run: |
           source $IDF_PATH/export.sh
+          # 设置环境变量防止交互式提示
+          export IDF_CCACHE_ENABLE=1
           python scripts/release.py bread-compact-wifi-lcd
 
       - name: 收集并上传固件
+        if: always()  # 即使构建失败也尝试收集日志
         run: |
           mkdir -p output_bin
           cp build/merged-binary.bin output_bin/ 2>/dev/null || true
           cp build/bootloader/bootloader.bin output_bin/ 2>/dev/null || true
           cp build/partition-table.bin output_bin/ 2>/dev/null || true
           cp build/xiaozhi-esp32.bin output_bin/ 2>/dev/null || true
+          # 收集构建日志
+          cp build/CMakeFiles/CMakeError.log output_bin/ 2>/dev/null || true
+          cp build/CMakeFiles/CMakeOutput.log output_bin/ 2>/dev/null || true
           ls -lh output_bin/
 
       - name: 上传固件包
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: xiaozhi-firmware
           path: output_bin
