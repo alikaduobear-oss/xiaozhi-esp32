@@ -16,20 +16,38 @@ jobs:
         with:
           submodules: recursive
 
-      - name: 编译 bread-compact-wifi-lcd 板型
+      - name: 设置目标芯片并复制配置
         shell: bash
         run: |
           source $IDF_PATH/export.sh
-          python scripts/release.py bread-compact-wifi-lcd --name bread-compact-wifi-lcd
+          idf.py set-target esp32s3
+          # 确保 board 配置存在
+          if [ ! -f "main/boards/bread-compact-wifi-lcd/config.h" ]; then
+            echo "错误：缺少 bread-compact-wifi-lcd 板型配置"
+            exit 1
+          fi
+          # 复制 board 配置到主配置（如果项目需要）
+          # 某些项目通过环境变量 BOARD_TYPE 选择板型
+          export BOARD_TYPE=bread-compact-wifi-lcd
+          # 或者直接复制 config.h（如果项目是这种方式）
+          # cp main/boards/bread-compact-wifi-lcd/config.h main/config.h
+
+      - name: 编译固件
+        shell: bash
+        run: |
+          source $IDF_PATH/export.sh
+          export BOARD_TYPE=bread-compact-wifi-lcd
+          idf.py build
 
       - name: 收集固件
         run: |
           mkdir -p output_bin
-          cp build/merged-binary.bin output_bin/firmware.bin
+          # 查找生成的 bin 文件
+          find build -name "*.bin" -exec cp {} output_bin/ \;
           ls -lh output_bin
 
       - name: 上传固件包
         uses: actions/upload-artifact@v4
         with:
-          name: xiaozhi-bread-compact-wifi-lcd
+          name: xiaozhi-firmware
           path: output_bin
